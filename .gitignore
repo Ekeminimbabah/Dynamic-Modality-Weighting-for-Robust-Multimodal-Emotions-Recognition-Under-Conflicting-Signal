@@ -1,0 +1,72 @@
+# Virtual environment
+mer/
+venv/
+env/
+.venv/
+results/
+# IDE & editor files
+.vscode/
+.idea/
+*.swp
+*~
+# python packaging & build artifacts
+dist/
+build/
+*.egg-info/
+*.eggs/
+# Testing & coverage files
+coverage/
+*.cover
+*.py,cover
+*.pytest_cache/
+htmlcov/
+.tox/
+
+#cache files
+.cache/
+*.cache
+*.lnk
+# Python cache
+__pycache__/
+*/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Datasets
+data/raw/
+data/processed/
+IEMOCAP/
+FER2013/
+datasets/
+extracted_faces/
+
+# Model checkpoints
+checkpoints/
+*.pth
+*.pt
+*.ckpt
+*.pkl
+*.joblib
+
+# Training logs and experiment tracking
+runs/
+logs/
+mlruns/
+wandb/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+
+# Optional: ignore test data if it contains real/large data
+test_data/
+
+
+
