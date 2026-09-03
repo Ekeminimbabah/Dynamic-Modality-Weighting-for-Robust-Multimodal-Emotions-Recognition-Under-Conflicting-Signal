@@ -21,6 +21,40 @@ The project investigates whether dynamically adjusting the contribution of each 
 
 ---
 
+## Setup & Installation
+
+### Prerequisites
+- Python 3.8 or higher
+- 4GB RAM minimum (8GB recommended)
+- Pre-trained models in `checkpoints/` folder (see QUICK_START.md)
+
+### Installation Steps
+
+1. **Clone the repository**
+
+2. **Create a virtual environment**
+   ```bash
+   python -m venv venv
+   ```
+
+3. **Activate the virtual environment**
+   - Windows: `venv\Scripts\activate`
+   - Mac/Linux: `source venv/bin/activate`
+
+4. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+5. **Run the Streamlit app**
+   ```bash
+   streamlit run app.py
+   ```
+
+For detailed setup instructions and deployment options, see [QUICK_START.md](QUICK_START.md).
+
+---
+
 ## Project Overview
 
 The system is built around three main components:
@@ -61,7 +95,7 @@ For IEMOCAP, the original emotion labels were mapped into these four classes. Th
 
 This project compares two main fusion strategies.
 
-### 1. Fixed 50/50 Weighting Baseline
+### 1. Fixed Weighting Baseline
 
 The fixed baseline gives equal importance to speech and facial information:
 
