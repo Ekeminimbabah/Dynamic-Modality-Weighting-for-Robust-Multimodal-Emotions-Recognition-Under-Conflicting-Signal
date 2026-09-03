@@ -169,84 +169,89 @@ if __name__ == "__main__":
     print(f"Predicted emotions: {[EMOTION_NAMES[p.item()] for p in predictions]}\n")
     
     
-    # TEST 2: ResNet18 Variant 
-    print("-" * 70)
-    print("TEST 2: ResNet18 Variant (FaceEmotionResNet18) - CORRECTED")
-    print("-" * 70)
-    print("""
-    CRITICAL FIXES APPLIED:
-    ✓ Input interpolation: 48x48 → 224x224 (ResNet requirement)
-    ✓ First conv layer reinitialized with kaiming_normal_
-    ✓ Proper weight initialization for grayscale adaptation
-    """)
+    # TEST 2: ResNet18 Variant - DISABLED (class not implemented)
+    # This section was removed as FaceEmotionResNet18 is not part of the final implementation
+    # The project uses the custom CNN (FaceEmotionModel) as the primary facial encoder
+    # 
+    # Commented out to prevent runtime errors during testing
+    # Uncomment if ResNet18 variant is implemented in future
     
-    resnet_model = FaceEmotionResNet18(num_emotions=4, pretrained=True)
-    resnet_model = resnet_model.to(device)
+    # print("-" * 70)
+    # print("TEST 2: ResNet18 Variant (FaceEmotionResNet18) - CORRECTED")
+    # print("-" * 70)
+    # print("""
+    # CRITICAL FIXES APPLIED:
+    # ✓ Input interpolation: 48x48 → 224x224 (ResNet requirement)
+    # ✓ First conv layer reinitialized with kaiming_normal_
+    # ✓ Proper weight initialization for grayscale adaptation
+    # """)
+    # 
+    # resnet_model = FaceEmotionResNet18(num_emotions=4, pretrained=True)
+    # resnet_model = resnet_model.to(device)
+    # 
+    # print("\nResNet18 Model Architecture (truncated):")
+    # print(resnet_model)
+    # 
+    # # Count parameters
+    # total_params_resnet = sum(p.numel() for p in resnet_model.parameters())
+    # print(f"\nTotal parameters: {total_params_resnet:,}\n")
+    # 
+    # # Forward pass
+    # print("Input shape: (batch_size=8, channels=1, height=48, width=48)")
+    # print("↓ (internally interpolated to 224x224)")
+    # with torch.no_grad():
+    #     resnet_output = resnet_model(dummy_input)
+    # 
+    # print(f"Output shape: {resnet_output.shape}")
+    # print(f"Output (logits) sample:\n{resnet_output[:2]}\n")
     
-    print("\nResNet18 Model Architecture (truncated):")
-    print(resnet_model)
-    
-    # Count parameters
-    total_params_resnet = sum(p.numel() for p in resnet_model.parameters())
-    print(f"\nTotal parameters: {total_params_resnet:,}\n")
-    
-    # Forward pass
-    print("Input shape: (batch_size=8, channels=1, height=48, width=48)")
-    print("↓ (internally interpolated to 224x224)")
-    with torch.no_grad():
-        resnet_output = resnet_model(dummy_input)
-    
-    print(f"Output shape: {resnet_output.shape}")
-    print(f"Output (logits) sample:\n{resnet_output[:2]}\n")
-    
-    # Get predictions
-    resnet_probs = torch.softmax(resnet_output, dim=1)
-    resnet_preds = torch.argmax(resnet_output, dim=1)
-    
-    print(f"Predicted emotions: {[EMOTION_NAMES[p.item()] for p in resnet_preds]}\n")
-    
-    
-    # ===== COMPARISON =====
-    print("="*70)
-    print("MODEL COMPARISON")
-    print("="*70)
-    
-    comparison = f"""
-    Model               | Parameters | Input Shape   | Output Shape | Best For
-    ────────────────────┼────────────┼───────────────┼──────────────┼──────────────────
-    FaceEmotionModel    | {total_params:>9,} | (B, 1, 48, 48) | (B, 4)       | Training from scratch
-    FaceEmotionResNet18 | {total_params_resnet:>9,} | (B, 1, 48, 48) | (B, 4)       | Transfer learning
-    
-    Note: B = batch_size
-    ResNet18 has more parameters due to deeper architecture and pretrained features.
-    """
-    print(comparison)
+    # ResNet output processing - DISABLED (class not implemented)
+    # resnet_probs = torch.softmax(resnet_output, dim=1)
+    # resnet_preds = torch.argmax(resnet_output, dim=1)
+    # print(f"Predicted emotions: {[EMOTION_NAMES[p.item()] for p in resnet_preds]}\n")
     
     
-    # ===== MULTIMODAL FUSION EXAMPLE =====
-    print("="*70)
-    print("MULTIMODAL FUSION EXAMPLE")
-    print("="*70 + "\n")
+    # MODEL COMPARISON - DISABLED (ResNet variant not implemented)
+    # print("="*70)
+    # print("MODEL COMPARISON")
+    # print("="*70)
+    # 
+    # comparison = f"""
+    # Model               | Parameters | Input Shape   | Output Shape | Best For
+    # ────────────────────┼────────────┼───────────────┼──────────────┼──────────────────
+    # FaceEmotionModel    | {total_params:>9,} | (B, 1, 48, 48) | (B, 4)       | Training from scratch
+    # FaceEmotionResNet18 | {total_params_resnet:>9,} | (B, 1, 48, 48) | (B, 4)       | Transfer learning
+    # 
+    # Note: B = batch_size
+    # ResNet18 has more parameters due to deeper architecture and pretrained features.
+    # """
+    # print(comparison)
     
-    print("""
-    Example usage in multimodal system:
     
-    1. Extract face emotion features:
-       face_model = FaceEmotionModel(num_emotions=4)
-       face_logits = face_model(face_images)  # (batch_size, 4)
-    
-    2. Extract speech emotion features (from speech_model.py):
-       speech_model = SpeechEmotionModel(num_emotions=4)
-       speech_logits = speech_model(mfcc_features)  # (batch_size, 4)
-    
-    3. Fuse predictions:
-       combined_logits = (face_logits + speech_logits) / 2
-       # Or use attention mechanism, concatenate, etc.
-    
-    4. Get final prediction:
-       final_probs = torch.softmax(combined_logits, dim=1)
-       final_emotion = torch.argmax(final_probs, dim=1)
-    """)
+    # MULTIMODAL FUSION EXAMPLE - DISABLED (ResNet variant not implemented)
+    # print("="*70)
+    # print("MULTIMODAL FUSION EXAMPLE")
+    # print("="*70 + "\n")
+    # 
+    # print("""
+    # Example usage in multimodal system:
+    # 
+    # 1. Extract face emotion features:
+    #    face_model = FaceEmotionModel(num_emotions=4)
+    #    face_logits = face_model(face_images)  # (batch_size, 4)
+    # 
+    # 2. Extract speech emotion features (from speech_model.py):
+    #    speech_model = SpeechEmotionModel(num_emotions=4)
+    #    speech_logits = speech_model(mfcc_features)  # (batch_size, 4)
+    # 
+    # 3. Fuse predictions:
+    #    combined_logits = (face_logits + speech_logits) / 2
+    #    # Or use attention mechanism, concatenate, etc.
+    #
+    # 4. Get final prediction:
+    #    final_probs = torch.softmax(combined_logits, dim=1)
+    #    final_emotion = torch.argmax(final_probs, dim=1)
+    # """)
     
     print("="*70)
     print("TEST COMPLETE ✓")
