@@ -30,20 +30,25 @@ class SpeechEmotionModel(nn.Module):
         super(SpeechEmotionModel, self).__init__()
         
         # ===== CONVOLUTIONAL LAYERS =====
+        # Extract temporal and spectral patterns from MFCC features.
+        # Similar architecture to face model but processes (MFCC+Delta, time) instead of (height, width).
         self.conv_layers = nn.Sequential(
             # Conv Block 1
+            # Capture local temporal-spectral patterns in lower frequencies
             nn.Conv2d(input_channels, 32, kernel_size=3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
             
             # Conv Block 2
+            # Extract medium-level prosodic features
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
             
             # Conv Block 3
+            # Capture high-level emotional cues from speech
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
@@ -52,16 +57,21 @@ class SpeechEmotionModel(nn.Module):
         
         # ===== FEATURE EXTRACTION =====
         # After 3 max pools: 13x384 -> 1x48
+        # Compress spectral features into 128-dimensional embedding matching face modality.
+        # This ensures compatible representations for multimodal fusion concatenation.
         self.feature_layers = nn.Sequential(
+            # Reduce spatial/temporal dimensions to semantic embedding
             nn.Linear(128 * 1 * 48, 256),
             nn.ReLU(),
             nn.Dropout(0.5),
+            # Project to 128D embedding space aligned with face embeddings
             nn.Linear(256, 128),  # Embedding dimension: 128
             nn.ReLU(),
             nn.Dropout(0.5),
         )
         
         # ===== CLASSIFICATION LAYER =====
+        # Separate classifier allows dual output: embeddings for fusion or logits for evaluation.
         self.classifier = nn.Linear(128, num_emotions)
     
     def forward(self, x, return_embeddings=False):
@@ -75,20 +85,20 @@ class SpeechEmotionModel(nn.Module):
         Returns:
             torch.Tensor: Logits (batch_size, 4) or Embeddings (batch_size, 128)
         """
-        # Convolutional layers
+        # Extract acoustic features via convolutional layers
         x = self.conv_layers(x)
         
-        # Flatten for fully connected layers
+        # Reshape for fully connected layers: [batch, channels, freq, time] -> [batch, features]
         x = x.view(x.size(0), -1)
         
-        # Feature extraction
+        # Generate 128-dimensional speech representation compatible with face embeddings
         embeddings = self.feature_layers(x)
         
-        # Return embeddings if requested (for feature-level fusion)
+        # Conditional output: embeddings for multimodal fusion, logits for standalone evaluation
         if return_embeddings:
             return embeddings
         
-        # Otherwise, return logits (for classification)
+        # Predict emotion class from acoustic representation
         logits = self.classifier(embeddings)
         return logits
 

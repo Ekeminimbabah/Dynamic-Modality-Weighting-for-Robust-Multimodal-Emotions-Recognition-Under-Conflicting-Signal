@@ -32,15 +32,20 @@ class EmbeddingFusion(nn.Module):
         self.num_emotions = num_emotions
         
         # ===== ATTENTION WEIGHTS =====
-        # Learn how important each modality is
+        # Learned gating networks that compute per-sample modality importance.
+        # Each network takes an embedding and outputs a scalar weight (0-1) via sigmoid.
+        # This allows the model to adaptively adjust modality contribution based on input.
         self.speech_gate = nn.Sequential(
+            # Compress embedding to decision representation
             nn.Linear(embedding_dim, 64),
             nn.ReLU(),
+            # Output single weight value for this modality
             nn.Linear(64, 1),
-            nn.Sigmoid()  # Weight between 0 and 1
+            nn.Sigmoid()  # Bound weight to [0, 1]
         )
         
         self.face_gate = nn.Sequential(
+            # Same architecture ensures symmetric treatment of modalities
             nn.Linear(embedding_dim, 64),
             nn.ReLU(),
             nn.Linear(64, 1),
@@ -48,18 +53,22 @@ class EmbeddingFusion(nn.Module):
         )
         
         # ===== FUSION LAYERS =====
-        # Fuse the weighted embeddings
+        # Process concatenated weighted embeddings to learn cross-modal interactions.
+        # This allows the model to learn how to best combine modalities beyond simple scaling.
         self.fusion = nn.Sequential(
+            # Project from concatenated embeddings (256D) to common representation (256D)
             nn.Linear(embedding_dim * 2, 256),
             nn.ReLU(),
             nn.Dropout(0.3),
             
+            # Further compress to 128D before final classification
             nn.Linear(256, 128),
             nn.ReLU(),
             nn.Dropout(0.3),
         )
         
         # ===== FINAL CLASSIFIER =====
+        # Maps fused representation to emotion logits for classification
         self.classifier = nn.Linear(128, num_emotions)
     
     def forward(self, speech_embeddings, face_embeddings):
@@ -79,29 +88,37 @@ class EmbeddingFusion(nn.Module):
         """
         
         # ===== COMPUTE ATTENTION WEIGHTS =====
+        # Each gating network independently computes modality importance from its embedding.
+        # This is different from fixed 0.5/0.5 - each sample gets adaptive weights.
         speech_weight = self.speech_gate(speech_embeddings)  # (batch_size, 1)
         face_weight = self.face_gate(face_embeddings)  # (batch_size, 1)
         
-        # Normalize weights to sum to 1
+        # Normalize weights so they sum to 1: ensures combination is a proper weighted average
+        # Both modalities always contribute, but their relative importance varies per sample
         total_weight = speech_weight + face_weight
         speech_weight_norm = speech_weight / (total_weight + 1e-8)
         face_weight_norm = face_weight / (total_weight + 1e-8)
         
         # ===== APPLY WEIGHTS =====
+        # Scale embeddings by computed importance: high weight preserves embedding direction,
+        # low weight dampens contribution. Trained end-to-end with emotion classification loss.
         weighted_speech = speech_embeddings * speech_weight_norm
         weighted_face = face_embeddings * face_weight_norm
         
         # ===== FUSE EMBEDDINGS =====
-        # Concatenate weighted embeddings
+        # Concatenate scaled representations: combines modality strengths while maintaining
+        # their relative contributions determined by learned gating functions
         fused = torch.cat([weighted_speech, weighted_face], dim=1)
         
-        # Process through fusion layers
+        # Process through fusion layers: allows model to learn interaction between weighted modalities
+        # beyond simple concatenation (e.g., resolving conflicts when modalities disagree)
         fused_features = self.fusion(fused)
         
         # ===== CLASSIFY =====
+        # Predict emotion from learned multimodal representation
         logits = self.classifier(fused_features)
         
-        # Return both logits and weights for analysis
+        # Return both predictions and intermediate representations for analysis and debugging
         return {
             'logits': logits,
             'speech_weight': speech_weight_norm.squeeze(-1),

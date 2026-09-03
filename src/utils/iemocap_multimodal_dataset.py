@@ -1,6 +1,7 @@
 """
 IEMOCAP Multimodal Dataset
-Pairs MFCC features with face images from the same utterance
+Pairs MFCC speech features with facial images extracted from same utterance.
+Enables joint training of multimodal fusion models on synchronized modalities.
 """
 
 import torch
@@ -16,38 +17,44 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 from src.utils.audio_utils import extract_mfcc
 
-# SPECAUGMENT: Data Augmentation for Speech Features
+# ============================================================
+# DATA AUGMENTATION FOR ROBUSTNESS
+# ============================================================
 
 def spec_augment(mfcc, freq_mask_param=30, time_mask_param=40):
     """
-    Apply SpecAugment augmentation to MFCC features
+    Apply SpecAugment data augmentation to MFCC features.
     
-    SpecAugment applies random masking to make the model robust:
-    - Time Masking: Hide random consecutive time frames (silence injection)
-    - Frequency Masking: Hide random consecutive frequency bins (filter simulation)
+    SpecAugment improves model robustness by simulating real-world audio degradation:
+    - Time Masking: Hides random temporal segments (simulates interrupted speech)
+    - Frequency Masking: Blocks random frequency bands (simulates background noise/filtering)
+    
+    Applied only during training to prevent overfitting to specific MFCC patterns.
     
     Args:
         mfcc (np.ndarray): MFCC features, shape (1, freq_bins, time_steps)
-        freq_mask_param (int): Max number of frequency bins to mask
-        time_mask_param (int): Max number of time frames to mask
+        freq_mask_param (int): Maximum consecutive frequency bins to mask [default: 30]
+        time_mask_param (int): Maximum consecutive time frames to mask [default: 40]
     
     Returns:
-        augmented_mfcc (np.ndarray): Masked MFCC features
+        augmented_mfcc (np.ndarray): MFCC with random masking applied
     """
     
-    mfcc = mfcc.copy()  # Don't modify original
+    mfcc = mfcc.copy()  # Preserve original for other processing
     
-    # Get dimensions
+    # Get dimensions for masking ranges
     freq_bins = mfcc.shape[1]
     time_steps = mfcc.shape[2]
     
-    # Time Masking: randomly mask T consecutive time frames
+    # Time Masking: randomly mask T consecutive time frames with zeros
+    # Simulates gaps in audio (e.g., silence, interruptions)
     t = np.random.randint(0, time_mask_param)
     if t > 0:
         t_start = np.random.randint(0, time_steps - t)
         mfcc[:, :, t_start:t_start + t] = 0
     
-    # Frequency Masking: randomly mask F consecutive frequency bins
+    # Frequency Masking: randomly mask F consecutive frequency bins with zeros
+    # Simulates frequency-specific noise or filtering
     f = np.random.randint(0, freq_mask_param)
     if f > 0:
         f_start = np.random.randint(0, freq_bins - f)
@@ -58,22 +65,32 @@ def spec_augment(mfcc, freq_mask_param=30, time_mask_param=40):
 
 class IEMOCAPMultimodalDataset(Dataset):
     """
-    Pair one speech utterance with up to three face frames from the
-    same IEMOCAP utterance.
-
-    Each sample returns:
-        speech_mfcc: [1, 13, target_length]
-        face_frames: [3, 1, 48, 48]
-        frame_mask: [3]
-        label: scalar
+    Multimodal dataset pairing speech MFCC with synchronized facial images.
+    
+    Dataset structure for each utterance:
+        - MFCC features: [1, 26, 128] (1 channel, 26 coefficients, 128 time steps)
+        - Face frames: up to 3 extracted frames (start, middle, end of utterance)
+        - Frame mask: binary mask (1=frame exists, 0=missing/invalid)
+        - Emotion label: shared across modalities
+    
+    Output per sample:
+        speech_mfcc: [1, 26, 128] - MFCC+Delta features
+        face_frames: [3, 1, 48, 48] - Up to 3 grayscale 48x48 frames
+        frame_mask: [3] - Binary availability mask
+        label: Emotion class (0=angry, 1=happy, 2=neutral, 3=sad)
+    
+    Critical for reproducibility: utterances must have consistent modality pairing
+    with same train/val/test splits used during unimodal training.
     """
 
+    # Frame positions within each utterance: capture temporal expression variation
     FRAME_NAMES = (
-        "start.png",
-        "middle.png",
-        "end.png",
+        "start.png",      # Emotion onset
+        "middle.png",     # Peak expression
+        "end.png",        # Emotion resolution
     )
 
+    # Emotion label mapping: 4-class classification
     EMOTION_TO_ID = {
         "angry": 0,
         "happy": 1,
@@ -81,6 +98,7 @@ class IEMOCAPMultimodalDataset(Dataset):
         "sad": 3,
     }
 
+    # Flexible CSV column detection: handles various metadata naming conventions
     POSSIBLE_ID_COLUMNS = (
         "utterance_id",
         "utterance",

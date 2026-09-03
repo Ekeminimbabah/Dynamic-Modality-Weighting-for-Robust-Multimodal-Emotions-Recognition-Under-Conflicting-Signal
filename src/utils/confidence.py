@@ -12,9 +12,13 @@ def get_entropy_based_confidence(logits, num_classes=None):
     """
     Compute entropy-based confidence scores [PRIMARY METHOD]
     
-    Formula (from paper):
-        H(p) = -Σ(i=1 to C) p_i * log(p_i)
-        c = 1 - H(p) / log(C)
+    Entropy measures prediction uncertainty: low entropy = high confidence.
+    Used in dynamic weighting to adaptively adjust modality contributions:
+    modalities with low entropy (confident predictions) receive higher weights during fusion.
+    
+    Formula:
+        H(p) = -Σ(i=1 to C) p_i * log(p_i)  [Information entropy]
+        c = 1 - H(p) / log(C)  [Normalized confidence score]
     
     Interpretation:
         - c = 1.0: Model completely confident (one-hot prediction)
@@ -35,16 +39,19 @@ def get_entropy_based_confidence(logits, num_classes=None):
     if num_classes is None:
         num_classes = logits.shape[1]
     
-    # Compute softmax probabilities
+    # Convert logits to probability distribution via softmax
     softmax = torch.softmax(logits, dim=1)
     
-    # Calculate entropy: H(p) = -Σ p_i * log(p_i)
+    # Calculate information entropy: measures average surprisal of predicted distribution
+    # Uniform distribution → max entropy (model uncertain)
+    # One-hot distribution → min entropy (model certain)
     entropy = -torch.sum(softmax * torch.log(softmax + 1e-8), dim=1)
     
-    # Maximum entropy for uniform distribution: log(C)
+    # Reference entropy of uniform distribution: maximum possible entropy
     max_entropy = np.log(num_classes)
     
-    # Normalize confidence: c = 1 - H(p) / log(C)
+    # Normalize to [0,1]: c=1 for certain predictions, c=0 for completely uncertain
+    # Critical for multimodal fusion: confidence directly scales modality contribution
     confidence = 1.0 - (entropy.cpu().numpy() / max_entropy)
     
     return confidence

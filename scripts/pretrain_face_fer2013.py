@@ -650,9 +650,9 @@ best_model.load_state_dict(
 print("✓ Best checkpoint loaded successfully")
 
 
-# ============================================================
+
 # FINAL TEST EVALUATION
-# ============================================================
+
 
 (
     test_loss,
@@ -688,9 +688,8 @@ print(
 )
 
 
-# ============================================================
+
 # PREDICTION DISTRIBUTION
-# ============================================================
 
 prediction_counts = Counter(
     test_predictions
@@ -708,9 +707,7 @@ for class_id in range(
     )
 
 
-# ============================================================
 # CONFUSION MATRIX
-# ============================================================
 
 cm = confusion_matrix(
     test_labels,
@@ -722,9 +719,8 @@ print("\nConfusion Matrix:")
 print(cm)
 
 
-# ============================================================
+
 # FINAL SAFETY CHECK
-# ============================================================
 
 unique_predictions = set(
     test_predictions

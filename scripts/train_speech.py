@@ -13,7 +13,11 @@ from src.models.speech_model import SpeechEmotionModel
 from src.utils.iemocap_dataloader import get_dataloaders
 #from src.utils.audio_utils import extract_mfcc
 
+# ============================================================
 # CONFIGURATION
+# ============================================================
+# Training hyperparameters for speech emotion recognition on IEMOCAP dataset.
+# IEMOCAP is imbalanced (more neutral/happy than angry/sad), so class weights are applied.
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 num_epochs = 50
@@ -28,7 +32,12 @@ print(f"\nDevice: {device}")
 print(f"Epochs: {num_epochs}")
 print(f"Learning Rate: {learning_rate}\n")
 
+# ============================================================
 # COMPUTE CLASS WEIGHTS FOR IMBALANCED DATA
+# ============================================================
+# IEMOCAP has uneven emotion distribution. Inverse frequency weighting ensures
+# that minority classes (angry, sad) receive higher loss weight, preventing
+# the model from ignoring these emotions during training.
 
 print("Computing class weights...")
 csv_path = PROJECT_ROOT / "data" / "processed" / "metadata" / "iemocap_harmonized.csv"
@@ -40,13 +49,18 @@ print(f"  Class distribution: {class_counts}")
 
 # Compute weights: inverse frequency
 # Formula: weight = total_samples / (num_classes * samples_in_class)
+# Higher weight for underrepresented emotions
 total_samples = len(df)
 class_weights = total_samples / (num_emotions * class_counts)
 class_weights = torch.tensor(class_weights, dtype=torch.float32).to(device)
 
 print(f"  Class weights: {class_weights}\n")
 
+# ============================================================
 # INITIALIZE MODEL
+# ============================================================
+# Load SpeechEmotionModel architecture and optimizer.
+# Adam optimizer with ReduceLROnPlateau scheduler: reduces LR if validation metric plateaus.
 
 speech_model = SpeechEmotionModel(num_emotions=num_emotions).to(device)
 criterion = nn.CrossEntropyLoss(weight=class_weights)
@@ -56,7 +70,12 @@ scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0
 print(f"✓ Model initialized")
 print(f"  Parameters: {sum(p.numel() for p in speech_model.parameters()):,}\n")
 
+# ============================================================
 # LOAD DATA
+# ============================================================
+# Load IEMOCAP MFCC features with same train/val/test split as facial model.
+# Consistent partitioning ensures fair multimodal comparison.
+
 print("\n[1] Calling get_dataloaders...", flush=True)
 
 

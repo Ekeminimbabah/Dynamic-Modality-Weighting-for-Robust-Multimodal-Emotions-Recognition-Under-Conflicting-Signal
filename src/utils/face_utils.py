@@ -3,6 +3,21 @@ import torch
 # FACE UTTERANCE HELPERS
 
 def get_face_classifier(model):
+    """
+    Extract the emotion classification layer from FaceEmotionModel.
+    
+    Different model implementations may use different layer names (classifier, fc, etc).
+    This utility handles flexible model architectures by checking common names.
+    
+    Args:
+        model: FaceEmotionModel instance
+    
+    Returns:
+        nn.Module: The final linear classification layer
+    
+    Raises:
+        AttributeError: If no recognized classifier layer found
+    """
     possible_names = (
         "classifier",
         "fc",
@@ -24,14 +39,32 @@ def get_face_classifier(model):
 
 
 def extract_face_embeddings(model, images):
+    """
+    Extract 128-dimensional embeddings from face images.
+    
+    Handles flexible model output formats (tensor, tuple, dict).
+    Validates output shape to ensure compatibility with multimodal fusion.
+    
+    Args:
+        model: FaceEmotionModel instance in eval mode
+        images: Tensor of shape [batch_size, channels, height, width]
+    
+    Returns:
+        torch.Tensor: Embeddings of shape [batch_size, 128]
+    
+    Raises:
+        ValueError: If model output has unexpected structure
+    """
     model_output = model(
         images,
         return_embeddings=True,
     )
 
+    # Model may return embeddings directly as tensor
     if isinstance(model_output, torch.Tensor):
         embeddings = model_output
 
+    # Or wrapped in tuple/list (logits, embeddings)
     elif isinstance(model_output, (tuple, list)):
         if len(model_output) < 2:
             raise ValueError(
@@ -40,6 +73,7 @@ def extract_face_embeddings(model, images):
 
         embeddings = model_output[-1]
 
+    # Or in dictionary with embedding key
     elif isinstance(model_output, dict):
         if "embeddings" in model_output:
             embeddings = model_output["embeddings"]
@@ -57,6 +91,7 @@ def extract_face_embeddings(model, images):
             "Unsupported FaceEmotionModel output type."
         )
 
+    # Validate shape: must be [batch, 128] for fusion compatibility
     if embeddings.ndim != 2:
         raise ValueError(
             "Expected frame embeddings with shape "
@@ -73,8 +108,20 @@ def forward_face_utterance(
     frame_mask,
 ):
     """
-    Average valid frame embeddings for each utterance and use the
-    averaged embedding to generate face logits.
+    Process multiple face frames from same utterance and generate utterance-level prediction.
+    
+    IEMOCAP utterances extract up to 3 frames (start, middle, end) for redundancy.
+    This function averages embeddings across valid frames (masked) and uses the
+    averaged representation to generate final face logits per utterance.
+    
+    Args:
+        model: FaceEmotionModel instance
+        frames: Tensor [batch, num_frames, channels, height, width] - up to 3 frames per utterance
+        frame_mask: Tensor [batch, num_frames] - binary mask (1=frame exists, 0=missing)
+    
+    Returns:
+        logits: Tensor [batch, 4] - emotion predictions per utterance
+        utterance_embeddings: Tensor [batch, 128] - averaged face embeddings
     """
 
     if frames.ndim != 5:
@@ -92,6 +139,8 @@ def forward_face_utterance(
         width,
     ) = frames.shape
 
+    # Reshape for batch processing: treat multiple frames as separate samples
+    # Process all frames together, then reshape back to utterance level
     flat_frames = frames.reshape(
         batch_size * number_of_frames,
         channels,

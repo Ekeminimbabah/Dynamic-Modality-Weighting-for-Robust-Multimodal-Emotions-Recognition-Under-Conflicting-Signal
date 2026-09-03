@@ -1,6 +1,11 @@
 """
 Multimodal Emotion Recognition - Research Evaluation Interface
 MSc Research Prototype for evaluating dynamic multimodal fusion models
+
+Streamlit frontend for interactive testing of:
+- Individual speech and face models
+- Fixed 0.5/0.5 weighting baseline
+- Dynamic entropy-based weighting
 """
 
 import streamlit as st
@@ -13,6 +18,11 @@ import cv2
 from PIL import Image as PILImage, ImageFilter
 import librosa
 from torchvision import transforms
+
+# ============================================================
+# PAGE CONFIGURATION
+# ============================================================
+# Set Streamlit page layout and styling for research evaluation interface
 
 st.set_page_config(
     page_title="Emotion Recognition - Research Evaluation",
@@ -43,7 +53,11 @@ from src.models.speech_model import SpeechEmotionModel
 from src.models.embedding_fusion import EmbeddingFusion
 from src.utils.confidence import get_entropy_based_confidence
 
-# ===== SETUP =====
+# ============================================================
+# SETUP
+# ============================================================
+# Global configuration: device, emotion mappings, paths
+
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -54,9 +68,21 @@ NUM_EMOTIONS = 4
 
 @st.cache_resource
 def load_models():
-    """Load all trained models: face, speech, and both fusion models"""
+    """
+    Load and cache all trained emotion recognition models.
     
-    # Face model
+    Loads three models:
+    1. Face model: Fine-tuned on IEMOCAP facial images
+    2. Speech model: Trained on IEMOCAP MFCC features
+    3. Fusion models: Both fixed baseline (0.5/0.5) and dynamic entropy-weighted
+    
+    Caching ensures models are loaded once per session, not reloaded on interaction.
+    
+    Returns:
+        tuple: (face_model, speech_model, fusion_equal, fusion_dynamic, error_msg)
+    """
+    
+    # Face model: processes 48x48 grayscale facial images
     face_model = FaceEmotionModel(num_emotions=NUM_EMOTIONS).to(DEVICE)
     face_ckpt = PROJECT_ROOT / "checkpoints" / "face_iemocap.pth"
     if not face_ckpt.exists():
@@ -64,7 +90,7 @@ def load_models():
     face_model.load_state_dict(torch.load(face_ckpt, map_location=DEVICE))
     face_model.eval()
     
-    # Speech model
+    # Speech model: processes MFCC features from audio
     speech_model = SpeechEmotionModel(num_emotions=NUM_EMOTIONS).to(DEVICE)
     speech_ckpt = PROJECT_ROOT / "checkpoints" / "speech_iemocap.pth"
     if not speech_ckpt.exists():
@@ -72,7 +98,7 @@ def load_models():
     speech_model.load_state_dict(torch.load(speech_ckpt, map_location=DEVICE))
     speech_model.eval()
     
-    # Fixed fusion model (equal weights baseline)
+    # Fixed fusion model: baseline with equal 0.5/0.5 modality weights
     fusion_equal = EmbeddingFusion(embedding_dim=128, num_emotions=NUM_EMOTIONS).to(DEVICE)
     fusion_equal_ckpt = PROJECT_ROOT / "checkpoints" / "fusion_model_equal.pth"
     if not fusion_equal_ckpt.exists():

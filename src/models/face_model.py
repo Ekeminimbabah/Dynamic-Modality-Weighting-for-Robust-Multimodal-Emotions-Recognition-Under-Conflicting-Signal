@@ -33,39 +33,52 @@ class FaceEmotionModel(nn.Module):
         super(FaceEmotionModel, self).__init__()
         
         # ===== CONVOLUTIONAL LAYERS =====
+        # Progressive feature extraction with 3 blocks. Each block reduces spatial
+        # dimensions by half via max pooling while increasing channel depth.
+        # This hierarchical approach captures local facial features at multiple scales.
         self.conv_layers = nn.Sequential(
             # Conv Block 1: (1, 48, 48) -> (32, 24, 24)
+            # Extract low-level features (edges, textures)
             nn.Conv2d(1, 32, kernel_size=3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
             
             # Conv Block 2: (32, 24, 24) -> (64, 12, 12)
+            # Extract mid-level features (shapes, patterns)
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
             
             # Conv Block 3: (64, 12, 12) -> (128, 6, 6)
+            # Extract high-level semantic features
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
         )
         
-        # FEATURE EXTRACTION (Dense layers before classification) 
+        # FEATURE EXTRACTION (Dense layers before classification)
+        # Compress convolutional features into a fixed 128-dimensional embedding.
+        # This embedding is compatible with multimodal fusion where both speech
+        # and face embeddings must have identical dimensions for concatenation.
         # After conv: 128 * 6 * 6 = 4608 features
         self.feature_layers = nn.Sequential(
+            # Reduce from 4608 to 256 to capture discriminative patterns
             nn.Linear(128 * 6 * 6, 256),
             nn.ReLU(inplace=True),
             nn.Dropout(0.5),
             
-            nn.Linear(256, 128),  # Embedding dimension: 128
+            # Final projection to 128D embedding space for fusion
+            nn.Linear(256, 128),
             nn.ReLU(inplace=True),
             nn.Dropout(0.5),
         )
         
         # ===== CLASSIFICATION LAYER =====
+        # Maps embedding to emotion logits. Separate layer allows model to output
+        # embeddings for fusion or logits for direct classification.
         self.classifier = nn.Linear(128, num_emotions)
     
     def forward(self, x, return_embeddings=False):
@@ -79,20 +92,20 @@ class FaceEmotionModel(nn.Module):
         Returns:
             torch.Tensor: Logits (batch_size, 4) or Embeddings (batch_size, 128)
         """
-        # Convolutional layers
+        # Extract facial features via convolutional layers
         x = self.conv_layers(x)
         
-        # Flatten
+        # Reshape tensor for fully connected layers: [batch, channels, height, width] -> [batch, features]
         x = x.view(x.size(0), -1)
         
-        # Feature extraction
+        # Generate 128-dimensional facial representation
         embeddings = self.feature_layers(x)
         
-        # Return embeddings if requested (for feature-level fusion)
+        # Conditional output: embeddings for multimodal fusion, logits for standalone classification
         if return_embeddings:
             return embeddings
         
-        # Otherwise, return logits (for classification)
+        # Predict emotion class from learned representation
         logits = self.classifier(embeddings)
         return logits
 
